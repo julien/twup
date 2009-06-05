@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml" 
+	layout="absolute"
+	backgroundColor="#333333"
+	backgroundImage=" "
+	borderStyle="none"
+	cornerRadius="0"
+	horizontalScrollPolicy="off"
+	verticalScrollPolicy="off"
+	showGripper="false"
+	showStatusBar="false"
+	titleBarColors="#333333, #999999"
+	addedToStage="addedToStageHandler()">
+	
+	<mx:Style>
+		Alert {
+			background-color: #333333;
+			border-color: #333333;
+			color: #cccccc;	
+		}
+	</mx:Style>
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Button;
+			import mx.controls.TextArea;
+			import mx.events.DynamicEvent;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.effects.Fade;
+			import mx.events.CloseEvent;
+			import mx.events.FileEvent;
+			import mx.events.TweenEvent;
+
+			protected var file:File;
+			protected var tpUrl:String;
+			protected var credentialsManager:CredentialsManager;
+			protected var credentials:Credentials;
+			protected var message:String;
+
+			public var img:Image;
+
+			protected function addedToStageHandler(event:Event = null):void {
+				credentialsManager = new CredentialsManager();
+				credentialsManager.addEventListener("error",  credentialsErrorHandler);
+				credentialsManager.addEventListener("result", credentialsResultHandler);
+				credentialsManager.open(File.documentsDirectory.resolvePath(".twup.db"));
+								
+				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, dragCompleteHandler);
+				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER,   dragEnterHandler);
+				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP,    dragDropHandler);
+			}
+			
+			protected function fileIoErrorHandler(event:IOErrorEvent):void {
+				Alert.show(event.text, "Error");
+			}
+			
+			protected function fileHttpResponseStatusHandler(event:HTTPStatusEvent):void {
+				// trace("http response status : ", event.status);
+			}
+			
+			protected function fileProgressHandler(event:ProgressEvent):void {
+				var p:Number = Math.floor((event.bytesLoaded / event.bytesTotal) * 100);
+				lbl.text = p.toString() + " % uploaded...";
+			}
+			
+			protected function fileUploadCompleteDataHandler(event:DataEvent = null):void {
+				trace("fileUploadCompleteDataHandler : ", event);
+				
+				var rsp:XML = new XML(event.data);
+				if(rsp.@status == "ok") {
+					tpUrl = rsp.mediaurl;
+					var o:Function = function(e:Object):void {
+						ctn.removeChild(img);
+						lbl.text = tpUrl;
+						/* Alert.show("Image uploaded\nClick OK to copy URL", 
+							"Info", Alert.OK | Alert.CANCEL, 
+							null, closeCopyUrlHandler); */
+					};
+					var f:Fade = new Fade(img);
+					f.alphaFrom = 1;
+					f.alphaTo = 0;
+					f.addEventListener(TweenEvent.TWEEN_END, o);
+					f.play();
+				} else if(rsp.@status == "fail") {
+					Alert.show(rsp.err.code + " : " + rsp.err.message, "Error");
+					removeChild(img);
+				}
+			}
+			
+			protected function closeCopyUrlHandler(event:CloseEvent):void {
+				event.currentTarget.removeEventListener(event.type, arguments.callee);
+				if(event.detail == Alert.OK)	{
+					Clipboard.generalClipboard.setData(ClipboardFormats.URL_FORMAT, tpUrl, true);
+				}
+			}
+			
+			protected function uploadImage(file:File):void {
+				if(file.size >= 4194304 ) {
+					Alert.show("Size is too large to be uploaded to Twitpic");
+					return;
+				} else if(credentials == null) {
+					Alert.show("You must specify a \ntwitter username and\n password first", "Error");
+					currentState = "form";
+				} else {
+					currentState = "";
+					lbl.text = "uploading...";
+					
+					var u:String = (message.length > 1) ? u = "http://twitpic.com/api/uploadAndPost" : u = "http://twitpic.com/api/upload";
+					
+					var r:URLRequest = new URLRequest(u);
+					r.contentType = "multipart/form-data";
+					r.method = URLRequestMethod.POST;
+					
+					var v:URLVariables = new URLVariables();
+					v.username = credentials.username;
+					v.password = credentials.password;
+					
+					if(message.length > 1)
+						v.message = message;
+					
+					r.data = v;
+					file.upload(r, "media");
+				}
+			}
+			
+			protected function clickHandler(event:MouseEvent):void {
+				file.browse([(new FileFilter("Images", "*.jpg;*.jpeg;*.gif;*.png"))]);
+			}
+			
+			protected function dragEnterHandler(event:NativeDragEvent):void {
+				NativeDragManager.acceptDragDrop(stage);
+			}
+			
+			protected function dragDropHandler(event:NativeDragEvent):void {
+				var files:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+				for each(var f:File in files) {
+					switch(f.extension) {
+						case "gif":
+						case "jpg":
+						case "jpeg":
+						case "png":
+							displayImage(f.nativePath);
+							break;
+						
+						default:
+							Alert.show("Unsupported file format", "Error");
+							break;
+					}
+				} 
+			}
+			
+			protected function dragCompleteHandler(event:NativeDragEvent):void {
+				// copyToDesktop();
+			}
+			
+			protected function displayImage(path:String):void {
+				file = File.applicationDirectory.resolvePath(path);
+				
+				if(file.exists) {
+					file.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, fileHttpResponseStatusHandler);
+					file.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, fileUploadCompleteDataHandler);
+					file.addEventListener(ProgressEvent.PROGRESS, fileProgressHandler);
+					file.addEventListener(IOErrorEvent.IO_ERROR,  fileIoErrorHandler);	
+					
+					
+					if(img == null) {
+						img = new Image();
+						img.setStyle("horizontalAlign", "center");
+						img.setStyle("verticalAlign", "middle");
+						img.addEventListener(Event.OPEN, imageOpenHandler);
+						img.addEventListener(Event.INIT, imageInitHandler);
+						
+						img.maxWidth  = 250;
+						img.maxHeight = 187;
+						img.width  = 250;
+						img.height = 187;
+					}
+					if(!ctn.contains(img)) 
+						ctn.addChild(img);
+					
+					img.load(file.url);
+				}				
+			}
+			
+			protected function imageOpenHandler(event:Event):void  {
+				img.alpha = 0;
+			}
+			
+			protected function imageInitHandler(event:Event):void {
+				var f:Fade = new Fade(img);
+				f.alphaFrom = 0;
+				f.alphaTo = 1;
+				f.addEventListener(TweenEvent.TWEEN_END, function(e:Object):void {
+					// uploadImage(file);
+					currentState = "edit";
+				 });
+				f.play();
+			}
+			
+			protected function credentialsResultHandler(event:DynamicEvent):void {
+				var data:Object = event.data;
+				if(data == null) {
+					currentState = "form";
+				} else {
+					if(data is Credentials) {
+						credentials = data as Credentials;
+						/*trace("username : ", credentials.username, 
+							" password : ", credentials.password); */
+						currentState = "";
+					}
+				}
+			}
+			
+			protected function credentialsErrorHandler(event:DynamicEvent):void {
+				Alert.show("Unable to retreive your credentials\n" + event.data, "Error");
+			}
+			
+			protected function saveCredentialsHandler(event:MouseEvent = null):void {
+				credentialsManager.insert(usr.text, pwd.text);
+			}
+			
+			protected function uploadClickHandler(event:MouseEvent):void {
+				(msg.text == null || msg.text.length < 1) ? message = "" : message = msg.text;
+				event.currentTarget.removeEventListener(event.type, arguments.callee);
+				uploadImage(file);
+				currentState = "";
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:states>
+		<mx:State name="form">
+			<mx:RemoveChild target="{lbl}" />
+			<mx:AddChild relativeTo="{ctn}" position="lastChild">
+				<mx:target>
+					<mx:VBox width="100%" height="100%"
+						horizontalScrollPolicy="off"
+						verticalScrollPolicy="off">
+						<mx:Form id="frm">
+							<mx:FormHeading color="#cccccc" fontSize="11"
+								label="Enter your twitter credentials" />
+							<mx:FormItem label="Username : " 
+								color="#cccccc">
+								<mx:TextInput id="usr"
+									color="#000000" />
+							</mx:FormItem>
+							<mx:FormItem label="Password : " 
+								color="#cccccc">
+								<mx:TextInput id="pwd" 
+									displayAsPassword="true"
+									color="#000000" />
+							</mx:FormItem>
+							<mx:FormItem label=" ">
+								<mx:Button label="Ok"
+									click="saveCredentialsHandler()" />
+							</mx:FormItem>
+						</mx:Form>	
+					</mx:VBox>
+				</mx:target>
+			</mx:AddChild>
+		</mx:State>
+		
+		<mx:State name="edit">
+			<mx:AddChild relativeTo="{ctn}" position="lastChild">
+				<mx:target>
+					<mx:VBox width="250"
+						horizontalAlign="right"
+						horizontalScrollPolicy="off"
+						paddingBottom="5" paddingLeft="5"
+						paddingRight="5" paddingTop="5"
+						verticalScrollPolicy="off">
+						<mx:TextArea id="msg" width="100%" 
+							height="60"
+							horizontalScrollPolicy="off"
+							verticalScrollPolicy="off"
+							maxChars="140" />
+						<mx:Button label="Ok" 
+							click="uploadClickHandler(event)" />
+					</mx:VBox>
+				</mx:target>
+			</mx:AddChild>
+		</mx:State>
+	</mx:states>
+	
+	<mx:VBox id="ctn"
+		width="100%" height="100%"
+		horizontalAlign="center" 
+		horizontalCenter="0"
+		horizontalScrollPolicy="off"
+		verticalAlign="middle"
+		verticalCenter="0"
+		verticalGap="0"
+		verticalScrollPolicy="off">
+		<mx:Label id="lbl"
+			color="#666666" 
+			text="Drag a pic to upload"
+			textAlign="center" 
+			fontWeight="bold" 
+			selectable="true" />
+	</mx:VBox>
+</mx:WindowedApplication>
