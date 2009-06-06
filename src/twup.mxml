@@ -33,19 +33,18 @@
 			import mx.events.TweenEvent;
 
 			protected var file:File;
-			protected var tpUrl:String;
-			protected var credentialsManager:CredentialsManager;
-			protected var credentials:Credentials;
+			protected var credentials:Object;
 			protected var message:String;
 
 			public var img:Image;
 
 			protected function addedToStageHandler(event:Event = null):void {
-				credentialsManager = new CredentialsManager();
-				credentialsManager.addEventListener("error",  credentialsErrorHandler);
-				credentialsManager.addEventListener("result", credentialsResultHandler);
-				credentialsManager.open(File.documentsDirectory.resolvePath(".twup.db"));
-								
+				// check credentials
+				if(!hasCredentials())
+					currentState = "form";
+				else 
+					retreiveCredentials();
+							
 				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, dragCompleteHandler);
 				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER,   dragEnterHandler);
 				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP,    dragDropHandler);
@@ -65,33 +64,25 @@
 			}
 			
 			protected function fileUploadCompleteDataHandler(event:DataEvent = null):void {
-				trace("fileUploadCompleteDataHandler : ", event);
-				
 				var rsp:XML = new XML(event.data);
-				if(rsp.@status == "ok") {
-					tpUrl = rsp.mediaurl;
+				if(rsp.@stat == "ok" || rsp.@status == "ok" ) {
 					var o:Function = function(e:Object):void {
 						ctn.removeChild(img);
-						lbl.text = tpUrl;
-						/* Alert.show("Image uploaded\nClick OK to copy URL", 
-							"Info", Alert.OK | Alert.CANCEL, 
-							null, closeCopyUrlHandler); */
+						lbl.text = "Pic uploaded to " + rsp.mediaurl;
+						Clipboard.generalClipboard.setData(
+							ClipboardFormats.TEXT_FORMAT, 
+							rsp.mediaurl, true);
+						Alert.show("Twitpic url copied to your clipboard", "Success");
 					};
 					var f:Fade = new Fade(img);
 					f.alphaFrom = 1;
 					f.alphaTo = 0;
 					f.addEventListener(TweenEvent.TWEEN_END, o);
 					f.play();
+					
 				} else if(rsp.@status == "fail") {
 					Alert.show(rsp.err.code + " : " + rsp.err.message, "Error");
 					removeChild(img);
-				}
-			}
-			
-			protected function closeCopyUrlHandler(event:CloseEvent):void {
-				event.currentTarget.removeEventListener(event.type, arguments.callee);
-				if(event.detail == Alert.OK)	{
-					Clipboard.generalClipboard.setData(ClipboardFormats.URL_FORMAT, tpUrl, true);
 				}
 			}
 			
@@ -99,8 +90,9 @@
 				if(file.size >= 4194304 ) {
 					Alert.show("Size is too large to be uploaded to Twitpic");
 					return;
-				} else if(credentials == null) {
-					Alert.show("You must specify a \ntwitter username and\n password first", "Error");
+				} else if(!hasCredentials()) {
+					Alert.show("You must specify a \n" + 
+						"twitter username and\n password first", "Error");
 					currentState = "form";
 				} else {
 					currentState = "";
@@ -142,7 +134,6 @@
 						case "png":
 							displayImage(f.nativePath);
 							break;
-						
 						default:
 							Alert.show("Unsupported file format", "Error");
 							break;
@@ -198,26 +189,18 @@
 				f.play();
 			}
 			
-			protected function credentialsResultHandler(event:DynamicEvent):void {
-				var data:Object = event.data;
-				if(data == null) {
-					currentState = "form";
-				} else {
-					if(data is Credentials) {
-						credentials = data as Credentials;
-						/*trace("username : ", credentials.username, 
-							" password : ", credentials.password); */
-						currentState = "";
-					}
-				}
-			}
-			
-			protected function credentialsErrorHandler(event:DynamicEvent):void {
-				Alert.show("Unable to retreive your credentials\n" + event.data, "Error");
-			}
-			
 			protected function saveCredentialsHandler(event:MouseEvent = null):void {
-				credentialsManager.insert(usr.text, pwd.text);
+				var b:ByteArray =  new ByteArray();
+				b.writeUTFBytes(usr.text);
+				EncryptedLocalStore.setItem("username", b);
+				
+				b = new ByteArray();
+				b.writeUTFBytes(pwd.text);
+				EncryptedLocalStore.setItem("password", b);
+				
+				usr.text = "";
+				pwd.text = "";
+				currentState = "";
 			}
 			
 			protected function uploadClickHandler(event:MouseEvent):void {
@@ -225,6 +208,20 @@
 				event.currentTarget.removeEventListener(event.type, arguments.callee);
 				uploadImage(file);
 				currentState = "";
+			}
+			
+			protected function hasCredentials():Boolean {
+				var u:ByteArray = EncryptedLocalStore.getItem("username");
+				var p:ByteArray = EncryptedLocalStore.getItem("password");
+				return u != null && p != null;
+			}
+			
+			protected function retreiveCredentials():void {
+				var u:ByteArray = EncryptedLocalStore.getItem("username");
+				var p:ByteArray = EncryptedLocalStore.getItem("password");
+				credentials = {};
+				credentials.username = u.readUTFBytes(u.length);
+				credentials.password = p.readUTFBytes(p.length);
 			}
 		]]>
 	</mx:Script>
@@ -235,10 +232,12 @@
 			<mx:AddChild relativeTo="{ctn}" position="lastChild">
 				<mx:target>
 					<mx:VBox width="100%" height="100%"
+						horizontalAlign="center"
 						horizontalScrollPolicy="off"
-						verticalScrollPolicy="off">
+						verticalScrollPolicy="off"
+						verticalAlign="middle">
 						<mx:Form id="frm">
-							<mx:FormHeading color="#cccccc" fontSize="11"
+							<mx:FormHeading color="#cccccc" fontSize="10"
 								label="Enter your twitter credentials" />
 							<mx:FormItem label="Username : " 
 								color="#cccccc">
@@ -270,6 +269,9 @@
 						paddingBottom="5" paddingLeft="5"
 						paddingRight="5" paddingTop="5"
 						verticalScrollPolicy="off">
+						<mx:Button icon="@Embed(source='cancel.png')" 
+							skin="{null}"
+							click="uploadClickHandler(event)" />
 						<mx:TextArea id="msg" width="100%" 
 							height="60"
 							horizontalScrollPolicy="off"
@@ -280,10 +282,13 @@
 					</mx:VBox>
 				</mx:target>
 			</mx:AddChild>
+			<mx:SetProperty target="{lbl}" name="text" 
+				value="Add an optionnal message to tweet your pic"
+				 />
 		</mx:State>
 	</mx:states>
 	
-	<mx:VBox id="ctn"
+	<mx:VBox 
 		width="100%" height="100%"
 		horizontalAlign="center" 
 		horizontalCenter="0"
@@ -298,5 +303,16 @@
 			textAlign="center" 
 			fontWeight="bold" 
 			selectable="true" />
+		<mx:VBox id="ctn"
+			width="100%" height="100%"
+			horizontalAlign="center" 
+			horizontalCenter="0"
+			horizontalScrollPolicy="off"
+			verticalAlign="middle"
+			verticalCenter="0"
+			verticalGap="0"
+			verticalScrollPolicy="off">
+			
+		</mx:VBox>
 	</mx:VBox>
 </mx:WindowedApplication>
