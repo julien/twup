@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml" 
+<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml"
 	layout="absolute"
 	backgroundColor="#333333"
-	backgroundImage=" "
 	borderStyle="none"
 	cornerRadius="0"
 	horizontalScrollPolicy="off"
@@ -12,13 +11,13 @@
 	titleBarColors="#333333, #999999"
 	addedToStage="addedToStageHandler()">
 	
-	<mx:Style>
+	<!--<mx:Style>
 		Alert {
 			background-color: #333333;
 			border-color: #333333;
 			color: #cccccc;	
 		}
-	</mx:Style>
+	</mx:Style>-->
 	
 	<mx:Script>
 		<![CDATA[
@@ -208,6 +207,10 @@
 				event.currentTarget.removeEventListener(event.type, arguments.callee);
 				uploadImage(file);
 				currentState = "";
+			}
+			
+			protected function cancelUpload():void {
+				
 			}
 			
 			protected function hasCredentials():Boolean {
