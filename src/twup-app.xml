@@ -59,10 +59,10 @@
 <!--	<installFolder></installFolder>        -->
 <!--	<programMenuFolder></programMenuFolder -->
 	<icon>
-		<image16x16>ps/twup/passets/icons/AIRApp_16.png</image16x16>
-		<image32x32>ps/twup/passets/icons/AIRApp_32.png</image32x32>
-		<image48x48>ps/twup/passets/icons/AIRApp_48.png</image48x48>
-		<image128x128>ps/twup/passets/icons/AIRApp_128.png</image128x128>
+		<image16x16>AIRApp_16.png</image16x16>
+		<image32x32>AIRApp_32.png</image32x32>
+		<image48x48>AIRApp_48.png</image48x48>
+		<image128x128>AIRApp_128.png</image128x128>
 	</icon>
 		<!-- Whether the application handles the update when a user double-clicks an update version
 	of the AIR file (true), or the default AIR application installer handles the update (false).
