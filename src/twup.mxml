@@ -1,194 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml"
-	layout="absolute"
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+	xmlns:s="library://ns.adobe.com/flex/spark"
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	name="twup"
+	backgroundAlpha="0.9"
 	backgroundColor="#333333"
-	borderStyle="none"
-	cornerRadius="0"
-	horizontalScrollPolicy="off"
-	verticalScrollPolicy="off"
-	showGripper="false"
-	showStatusBar="false"
-	titleBarColors="#333333, #999999"
-	addedToStage="addedToStageHandler()">
+	showStatusBar="false" 
+	applicationComplete="initializeApplication()"
+	width="300" height="400"
+	>
 	
-	<!--<mx:Style>
-		Alert {
-			background-color: #333333;
-			border-color: #333333;
-			color: #cccccc;	
-		}
-	</mx:Style>-->
-	
-	<mx:Script>
+	<fx:Script>
 		<![CDATA[
-			import mx.controls.Button;
-			import mx.controls.TextArea;
-			import mx.events.DynamicEvent;
+			import flash.data.EncryptedLocalStore;
+			import flash.filesystem.File;
+			import flash.utils.ByteArray;
+			
 			import mx.controls.Alert;
 			import mx.controls.Image;
-			import mx.effects.Fade;
 			import mx.events.CloseEvent;
-			import mx.events.FileEvent;
-			import mx.events.TweenEvent;
-
-			protected var file:File;
-			protected var credentials:Object;
-			protected var message:String;
-
-			public var img:Image;
-
-			protected function addedToStageHandler(event:Event = null):void {
-				// check credentials
-				if(!hasCredentials())
-					currentState = "form";
-				else 
-					retreiveCredentials();
-							
-				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, dragCompleteHandler);
-				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER,   dragEnterHandler);
-				stage.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP,    dragDropHandler);
-			}
 			
-			protected function fileIoErrorHandler(event:IOErrorEvent):void {
-				Alert.show(event.text, "Error");
-			}
+			private var _credentials:Object;
+			private var _file:File;
+			private var _message:String;
 			
-			protected function fileHttpResponseStatusHandler(event:HTTPStatusEvent):void {
-				// trace("http response status : ", event.status);
-			}
-			
-			protected function fileProgressHandler(event:ProgressEvent):void {
-				var p:Number = Math.floor((event.bytesLoaded / event.bytesTotal) * 100);
-				lbl.text = p.toString() + " % uploaded...";
-			}
-			
-			protected function fileUploadCompleteDataHandler(event:DataEvent = null):void {
-				var rsp:XML = new XML(event.data);
-				if(rsp.@stat == "ok" || rsp.@status == "ok" ) {
-					var o:Function = function(e:Object):void {
-						ctn.removeChild(img);
-						lbl.text = "Pic uploaded to " + rsp.mediaurl;
-						Clipboard.generalClipboard.setData(
-							ClipboardFormats.TEXT_FORMAT, 
-							rsp.mediaurl, true);
-						Alert.show("Twitpic url copied to your clipboard", "Success");
-					};
-					var f:Fade = new Fade(img);
-					f.alphaFrom = 1;
-					f.alphaTo = 0;
-					f.addEventListener(TweenEvent.TWEEN_END, o);
-					f.play();
-					
-				} else if(rsp.@status == "fail") {
-					Alert.show(rsp.err.code + " : " + rsp.err.message, "Error");
-					removeChild(img);
-				}
-			}
-			
-			protected function uploadImage(file:File):void {
-				if(file.size >= 4194304 ) {
-					Alert.show("Size is too large to be uploaded to Twitpic");
-					return;
-				} else if(!hasCredentials()) {
-					Alert.show("You must specify a \n" + 
-						"twitter username and\n password first", "Error");
-					currentState = "form";
-				} else {
-					currentState = "";
-					lbl.text = "uploading...";
-					
-					var u:String = (message.length > 1) ? u = "http://twitpic.com/api/uploadAndPost" : u = "http://twitpic.com/api/upload";
-					
-					var r:URLRequest = new URLRequest(u);
-					r.contentType = "multipart/form-data";
-					r.method = URLRequestMethod.POST;
-					
-					var v:URLVariables = new URLVariables();
-					v.username = credentials.username;
-					v.password = credentials.password;
-					
-					if(message.length > 1)
-						v.message = message;
-					
-					r.data = v;
-					file.upload(r, "media");
-				}
-			}
-			
-			protected function clickHandler(event:MouseEvent):void {
-				file.browse([(new FileFilter("Images", "*.jpg;*.jpeg;*.gif;*.png"))]);
-			}
-			
-			protected function dragEnterHandler(event:NativeDragEvent):void {
-				NativeDragManager.acceptDragDrop(stage);
-			}
-			
-			protected function dragDropHandler(event:NativeDragEvent):void {
-				var files:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
-				for each(var f:File in files) {
-					switch(f.extension) {
-						case "gif":
-						case "jpg":
-						case "jpeg":
-						case "png":
-							displayImage(f.nativePath);
-							break;
-						default:
-							Alert.show("Unsupported file format", "Error");
-							break;
-					}
-				} 
-			}
-			
-			protected function dragCompleteHandler(event:NativeDragEvent):void {
-				// copyToDesktop();
-			}
-			
-			protected function displayImage(path:String):void {
-				file = File.applicationDirectory.resolvePath(path);
+			private function initializeApplication():void {
 				
-				if(file.exists) {
-					file.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, fileHttpResponseStatusHandler);
-					file.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, fileUploadCompleteDataHandler);
-					file.addEventListener(ProgressEvent.PROGRESS, fileProgressHandler);
-					file.addEventListener(IOErrorEvent.IO_ERROR,  fileIoErrorHandler);	
-					
-					
-					if(img == null) {
-						img = new Image();
-						img.setStyle("horizontalAlign", "center");
-						img.setStyle("verticalAlign", "middle");
-						img.addEventListener(Event.OPEN, imageOpenHandler);
-						img.addEventListener(Event.INIT, imageInitHandler);
-						
-						img.maxWidth  = 250;
-						img.maxHeight = 187;
-						img.width  = 250;
-						img.height = 187;
-					}
-					if(!ctn.contains(img)) 
-						ctn.addChild(img);
-					
-					img.load(file.url);
-				}				
+				systemManager.stage.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, dragCompleteHandler);
+				systemManager.stage.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, dragEnterHandler);
+				systemManager.stage.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, dragDropHandler);
+				
+				setCurrentState("normal");
+				if(!hasCredentials()) {
+					setCurrentState("form");
+					addFormEventListeners();
+				} else {
+					retreiveCredentials();
+				}
 			}
 			
-			protected function imageOpenHandler(event:Event):void  {
-				img.alpha = 0;
+			private function addFormEventListeners():void {
+				loginBtn.addEventListener(MouseEvent.CLICK, saveCredentialsHandler);
 			}
 			
-			protected function imageInitHandler(event:Event):void {
-				var f:Fade = new Fade(img);
-				f.alphaFrom = 0;
-				f.alphaTo = 1;
-				f.addEventListener(TweenEvent.TWEEN_END, function(e:Object):void {
-					// uploadImage(file);
-					currentState = "edit";
-				 });
-				f.play();
-			}
-			
-			protected function saveCredentialsHandler(event:MouseEvent = null):void {
+			private function saveCredentialsHandler(event:MouseEvent = null):void {
+				EncryptedLocalStore.reset();
+				
 				var b:ByteArray =  new ByteArray();
 				b.writeUTFBytes(usr.text);
 				EncryptedLocalStore.setItem("username", b);
@@ -199,123 +56,273 @@
 				
 				usr.text = "";
 				pwd.text = "";
-				currentState = "";
+				setCurrentState("normal");
+				retreiveCredentials();
+			}
+
+			private function hasCredentials():Boolean {
+				try {
+					var u:ByteArray = EncryptedLocalStore.getItem("username");
+					var p:ByteArray = EncryptedLocalStore.getItem("password");
+					return u != null && p != null;
+				} catch (error:Error) { }
+				return false;
 			}
 			
-			protected function uploadClickHandler(event:MouseEvent):void {
-				(msg.text == null || msg.text.length < 1) ? message = "" : message = msg.text;
-				event.currentTarget.removeEventListener(event.type, arguments.callee);
-				uploadImage(file);
-				currentState = "";
+			private function retreiveCredentials():void {
+				try {
+					var u:ByteArray = EncryptedLocalStore.getItem("username");
+					var p:ByteArray = EncryptedLocalStore.getItem("password");	
+					_credentials = {};
+					_credentials.username = u.readUTFBytes(u.length);
+					_credentials.password = p.readUTFBytes(p.length);
+				} catch (error:Error) { }
 			}
 			
-			protected function cancelUpload():void {
+			private function dragEnterHandler(event:NativeDragEvent):void {
+				NativeDragManager.acceptDragDrop(stage);
+			}
+			
+			private function dragDropHandler(event:NativeDragEvent):void {
+				var files:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+				for each(var f:File in files) {
+					switch(f.extension) {
+						case "GIF":
+						case "gif":
+						case "JPG":
+						case "jpg":
+						case "JPEG":
+						case "jpeg":
+						case "PNG":
+						case "png":
+							displayImage(f.nativePath);
+							break;
+						default:
+							Alert.show("Unsupported file format", "Error");
+							break;
+					}
+				} 
+			}
+			
+			private function dragCompleteHandler(event:NativeDragEvent):void {
+				// copyToDesktop();
+			}
+			
+			private function displayImage(path:String):void {
+				_file = File.applicationDirectory.resolvePath(path);
+				if(_file.exists) {
+					setCurrentState("edit");
+					_file.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, fileHttpResponseStatusHandler);
+					_file.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, fileUploadCompleteDataHandler);
+					_file.addEventListener(ProgressEvent.PROGRESS, fileProgressHandler);
+					_file.addEventListener(IOErrorEvent.IO_ERROR,  fileIoErrorHandler);
+					if(_file.size >= 4194304) {
+//						Add a new state
+						msg.text = "";
+						setCurrentState("normal");
+						lbl.text = "Sorry, the file is too big.";
+					} else {					
+						img.load(_file.url); 
+					}
+				}			
 				
 			}
 			
-			protected function hasCredentials():Boolean {
-				var u:ByteArray = EncryptedLocalStore.getItem("username");
-				var p:ByteArray = EncryptedLocalStore.getItem("password");
-				return u != null && p != null;
+			private function uploadImage(file:File):void {
+				setCurrentState("normal");
+				lbl.text = "uploading...";
+
+				var u:String = (_message.length > 1) ? u = "http://twitpic.com/api/uploadAndPost" : u = "http://twitpic.com/api/upload";
+				
+				var r:URLRequest = new URLRequest(u);
+				r.contentType = "multipart/form-data";
+				r.method = URLRequestMethod.POST;
+				
+				var v:URLVariables = new URLVariables();
+				v.username = _credentials.username;
+				v.password = _credentials.password;
+				
+				if(_message.length > 1)
+					v.message = _message;
+				
+				r.data = v;
+				file.upload(r, "media");
 			}
 			
-			protected function retreiveCredentials():void {
-				var u:ByteArray = EncryptedLocalStore.getItem("username");
-				var p:ByteArray = EncryptedLocalStore.getItem("password");
-				credentials = {};
-				credentials.username = u.readUTFBytes(u.length);
-				credentials.password = p.readUTFBytes(p.length);
+			private function uploadClickHandler(event:MouseEvent):void {
+				(msg.text == null || msg.text.length < 1) ? _message = "" : _message = msg.text;
+				event.currentTarget.removeEventListener(event.type, arguments.callee);
+				txtCount.text = "";
+				uploadImage(_file);
+			}
+			
+			private function cancelClickHandler(event:MouseEvent):void {
+				msg.text = "";
+				txtCount.text = "";
+				setCurrentState("normal");
+			}
+			
+			private function imageOpenHandler(event:Event = null):void  {
+				img.alpha = 0;
+			}
+			
+			private function imageInitHandler(event:Event = null):void {
+				var f:Fade = new Fade(img);
+				f.alphaFrom = 0;
+				f.alphaTo = 1;
+				f.play();
+			}
+			
+			private function msgChangeHandler(event:Event = null):void {
+				var count:int = 140 - msg.text.length;
+				txtCount.text = count.toString();
+			}
+			
+			private function fileIoErrorHandler(event:IOErrorEvent):void {
+				Alert.show(event.text, "Error");
+			}
+			
+			private function fileHttpResponseStatusHandler(event:HTTPStatusEvent):void {
+				// trace("http response status : ", event.status);
+			}
+			
+			private function fileProgressHandler(event:ProgressEvent):void {
+				var p:Number = Math.floor((event.bytesLoaded / event.bytesTotal) * 100);
+				lbl.text = p.toString() + " % uploaded...";
+			}
+			
+			private function fileUploadCompleteDataHandler(event:DataEvent = null):void {
+				var rsp:XML = new XML(event.data);
+				if(rsp.@stat == "ok" || rsp.@status == "ok" ) {
+					setCurrentState("normal");
+					lbl.text = "Pic uploaded to " + rsp.mediaurl;
+					Clipboard.generalClipboard.setData(
+						ClipboardFormats.TEXT_FORMAT, 
+						rsp.mediaurl, true);
+					Alert.show("Twitpic url copied to your clipboard", 
+						"Success", Alert.OK, this, 
+						alertCloseHandler);
+				} else if(rsp.@status == "fail") {
+					Alert.show(rsp.err.code + " : " + rsp.err.message, 
+						"Error", Alert.OK, this, 
+						alertCloseHandler);
+				}
+			}
+			
+			private function alertCloseHandler(event:CloseEvent = null):void {
+				setCurrentState("normal");
+				lbl.text = "Drag a pic to upload";
+				
 			}
 		]]>
-	</mx:Script>
+	</fx:Script>
 	
-	<mx:states>
-		<mx:State name="form">
-			<mx:RemoveChild target="{lbl}" />
-			<mx:AddChild relativeTo="{ctn}" position="lastChild">
-				<mx:target>
-					<mx:VBox width="100%" height="100%"
-						horizontalAlign="center"
-						horizontalScrollPolicy="off"
-						verticalScrollPolicy="off"
-						verticalAlign="middle">
-						<mx:Form id="frm">
-							<mx:FormHeading color="#cccccc" fontSize="10"
-								label="Enter your twitter credentials" />
-							<mx:FormItem label="Username : " 
-								color="#cccccc">
-								<mx:TextInput id="usr"
-									color="#000000" />
-							</mx:FormItem>
-							<mx:FormItem label="Password : " 
-								color="#cccccc">
-								<mx:TextInput id="pwd" 
-									displayAsPassword="true"
-									color="#000000" />
-							</mx:FormItem>
-							<mx:FormItem label=" ">
-								<mx:Button label="Ok"
-									click="saveCredentialsHandler()" />
-							</mx:FormItem>
-						</mx:Form>	
-					</mx:VBox>
-				</mx:target>
-			</mx:AddChild>
-		</mx:State>
+	<fx:Style>
+		@namespace s "library://ns.adobe.com/flex/spark";
+		@namespace mx "library://ns.adobe.com/flex/mx";
+		@namespace components "ps.twup.components.*";
 		
-		<mx:State name="edit">
-			<mx:AddChild relativeTo="{ctn}" position="lastChild">
-				<mx:target>
-					<mx:VBox width="250"
-						horizontalAlign="right"
-						horizontalScrollPolicy="off"
-						paddingBottom="5" paddingLeft="5"
-						paddingRight="5" paddingTop="5"
-						verticalScrollPolicy="off">
-						<mx:Button icon="@Embed(source='cancel.png')" 
-							skin="{null}"
-							click="uploadClickHandler(event)" />
-						<mx:TextArea id="msg" width="100%" 
-							height="60"
-							horizontalScrollPolicy="off"
-							verticalScrollPolicy="off"
-							maxChars="140" />
-						<mx:Button label="Ok" 
-							click="uploadClickHandler(event)" />
-					</mx:VBox>
-				</mx:target>
-			</mx:AddChild>
-			<mx:SetProperty target="{lbl}" name="text" 
-				value="Add an optionnal message to tweet your pic"
-				 />
-		</mx:State>
-	</mx:states>
+		mx|Alert {
+			text-align: center;
+			
+		}
+	</fx:Style>
 	
-	<mx:VBox 
+	<s:layout>
+		<s:BasicLayout />
+	</s:layout>
+	
+	<s:states>
+		<s:State name="normal" />
+		<s:State name="form" />
+		<s:State name="edit" />
+	</s:states>
+	
+	<s:transitions>
+		<s:Transition fromState="*" toState="normal">
+			<s:Sequence>
+				<s:Fade target="{editGrp}" />
+				<s:RemoveAction target="{editGrp}" />
+				<s:AddAction  target="{lbl}" />
+				<s:Move xFrom="-400" target="{lbl}" duration="400" />
+			</s:Sequence>
+		</s:Transition>
+		<s:Transition fromState="*" toState="form">
+			<s:Sequence>
+				<s:Fade duration="500" target="{lbl}" />
+				<s:RemoveAction  target="{lbl}" />	
+				<s:AddAction target="{loginGrp}" />
+				<s:Move xFrom="400" target="{loginGrp}" duration="400" />
+			</s:Sequence>
+		</s:Transition>
+		<s:Transition fromState="*" toState="edit">
+			<s:Sequence>
+				<s:AddAction target="{editGrp}" />
+				<s:Move xFrom="400" target="{editGrp}" duration="400" />
+			</s:Sequence>
+		</s:Transition>
+	</s:transitions>
+	
+	<s:Group id="ctn"
 		width="100%" height="100%"
-		horizontalAlign="center" 
+		clipAndEnableScrolling="true"
 		horizontalCenter="0"
-		horizontalScrollPolicy="off"
-		verticalAlign="middle"
 		verticalCenter="0"
-		verticalGap="0"
-		verticalScrollPolicy="off">
-		<mx:Label id="lbl"
+		>
+		<s:Label id="lbl"
 			color="#666666" 
 			text="Drag a pic to upload"
 			textAlign="center" 
 			fontWeight="bold" 
-			selectable="true" />
-		<mx:VBox id="ctn"
-			width="100%" height="100%"
-			horizontalAlign="center" 
-			horizontalCenter="0"
-			horizontalScrollPolicy="off"
+			includeIn="normal"
+			verticalCenter="0"
+			width="100%" 
+			/>
+		
+		<s:VGroup id="loginGrp" 
+			includeIn="form"
+			horizontalAlign="center"
 			verticalAlign="middle"
 			verticalCenter="0"
-			verticalGap="0"
-			verticalScrollPolicy="off">
+			width="100%">	
+			<s:Label text="Enter your twitter crendials and login" 
+				fontSize="16"
+				fontWeight="bold" />
+			<s:Label text="Username : "  />
+			<s:TextInput id="usr" />
+			<s:Label text="Password : "  />
+			<s:TextInput id="pwd" displayAsPassword="true" />
+			<s:Button label="Ok" id="loginBtn" />
 			
-		</mx:VBox>
-	</mx:VBox>
-</mx:WindowedApplication>
+		</s:VGroup>
+		
+		<s:VGroup id="editGrp" includeIn="edit" 
+			width="100%" 
+			horizontalAlign="center"
+			verticalCenter="0">
+			<mx:Image id="img" 
+				horizontalAlign="center" 
+				verticalAlign="middle" 
+				width="250" height="187"
+				maxWidth="250" maxHeight="200"
+				init="imageInitHandler()"
+				open="imageOpenHandler()"
+				/>
+			<s:TextArea id="msg" width="80%" 
+				height="50"
+				horizontalScrollPolicy="off"
+				verticalScrollPolicy="off"
+				maxChars="140" change="msgChangeHandler()" />
+			<s:Label id="txtCount" width="80%" 
+				textAlign="right" text="140" />
+			<s:HGroup horizontalAlign="center" 
+				width="100%" height="100%">
+				<s:Button label="Ok" 
+					click="uploadClickHandler(event)" />
+				<s:Button label="Cancel"
+					click="cancelClickHandler(event)" />
+			</s:HGroup>
+		</s:VGroup>			
+	</s:Group>
+	
+</s:WindowedApplication>

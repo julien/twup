@@ -1,38 +1,16 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
-<application xmlns="http://ns.adobe.com/air/application/2.0">
-
-<!-- Adobe AIR Application Descriptor File Template.
-
-	Specifies parameters for identifying, installing, and launching AIR applications.
-	See http://www.adobe.com/go/air_1.0_application_descriptor for complete documentation.
-
-	xmlns - The Adobe AIR namespace: http://ns.adobe.com/air/application/1.0
-			The last segment of the namespace specifies the version 
-			of the AIR runtime required for this application to run.
-			
-	minimumPatchLevel - The minimum patch level of the AIR runtime required to run 
-			the application. Optional.
--->
-
-	<!-- The application identifier string, unique to this application. Required. -->
-	<id>org.punkscum.twup</id>
-
-	<!-- Used as the filename for the application. Required. -->
+<application xmlns="http://ns.adobe.com/air/application/2.0"
+	minimumPatchLevel="0">
+	<id>ps.twup</id>
+	<name>
+		<text xml:lang="en">twup</text>
+	</name>
+	<version>1.0</version>
 	<filename>twup</filename>
-
-	<!-- The name that is displayed in the AIR application installer. Optional. -->
-	<name>twup</name>
-
-	<!-- An application version designator (such as "v1", "2.5", or "Alpha 1"). Required. -->
-	<version>v5</version>
-
-	<!-- Description, displayed in the AIR application installer. Optional. -->
-	<description>twup lets you upload pictures from your desktop to twitpic.com</description>
-
-	<!-- Copyright information. Optional -->
+	<description>
+		<text xml:lang="en">twup lets you upload pictures from your desktop to twitpic.com.</text>
+	</description>
 	<copyright>2010 Julien Castelain</copyright>
-
-	<!-- Settings for the application's initial window. Required. -->
 	<initialWindow>
 		<!-- The main SWF or HTML file of the application. Required. -->
 		<!-- Note: In Flex Builder, the SWF reference is set automatically. -->
@@ -42,10 +20,11 @@
 		<title>twup</title>
 
 		<!-- The type of system chrome to use (either "standard" or "none"). Optional. Default standard. -->
-		<systemChrome>none</systemChrome>
+		<!-- <systemChrome>none</systemChrome> -->
+ 
 
 		<!-- Whether the window is transparent. Only applicable when systemChrome is false. Optional. Default false. -->
-		<transparent>true</transparent>
+		<!-- <transparent>true</transparent> -->
 
 		<!-- Whether the window is initially visible. Optional. Default false. -->
 		<!-- <visible></visible> -->
@@ -77,30 +56,22 @@
 		<!-- The window's initial maximum size, specified as a width/height pair, such as "1600 1200". Optional. -->
 		<!-- <maxSize></maxSize> -->
 	</initialWindow>
-
-	<!-- The subpath of the standard default installation location to use. Optional. -->
-	<!-- <installFolder></installFolder> -->
-
-	<!-- The subpath of the Windows Start/Programs menu to use. Optional. -->
-	<!-- <programMenuFolder></programMenuFolder> -->
-
-	<!-- The icon the system uses for the application. For at least one resolution,
-		 specify the path to a PNG file included in the AIR package. Optional. -->
+<!--	<installFolder></installFolder>        -->
+<!--	<programMenuFolder></programMenuFolder -->
 	<icon>
-		<image16x16>AIRApp_16.png</image16x16>
-		<image32x32>AIRApp_32.png</image32x32>
-		<image48x48>AIRApp_48.png</image48x48>
-		<image128x128>AIRApp_128.png</image128x128>
+		<image16x16>ps/twup/passets/icons/AIRApp_16.png</image16x16>
+		<image32x32>ps/twup/passets/icons/AIRApp_32.png</image32x32>
+		<image48x48>ps/twup/passets/icons/AIRApp_48.png</image48x48>
+		<image128x128>ps/twup/passets/icons/AIRApp_128.png</image128x128>
 	</icon>
-
-	<!-- Whether the application handles the update when a user double-clicks an update version
+		<!-- Whether the application handles the update when a user double-clicks an update version
 	of the AIR file (true), or the default AIR application installer handles the update (false).
 	Optional. Default false. -->
 	<customUpdateUI>true</customUpdateUI>
 	
 	<!-- Whether the application can be launched when the user clicks a link in a web browser.
 	Optional. Default false. -->
-	<!-- <allowBrowserInvocation></allowBrowserInvocation> -->
+	<allowBrowserInvocation>true</allowBrowserInvocation>
 
 	<!-- Listing of file types for which the application can register. Optional. -->
 	<!-- <fileTypes> -->
@@ -130,5 +101,4 @@
 			
 		<!-- </fileType> -->
 	<!-- </fileTypes> -->
-
 </application>
